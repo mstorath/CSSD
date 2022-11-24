@@ -2,7 +2,8 @@
 
 This is a reference implementation in Matlab for the algorithms described in the paper
 
-**M. Storath, A. Weinmann, "Smoothing splines for discontinuous signals", 2022**
+**[M. Storath, A. Weinmann, "Smoothing splines for discontinuous signals", 2022](
+https://doi.org/10.48550/arXiv.2211.12785)**
 
 ## Overview of main functionalities
 1. **cssd.m** computes a cubic smoothing spline with discontinuities (CSSD) for data (x,y). It is a solution of the following model of a smoothing spline $f$ with a-priori unknown discontinuities $J$
