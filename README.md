@@ -58,4 +58,4 @@ represent the results of the shown sample realization.	 The shaded areas depict 
 
 ## Reference
 
-M. Storath, A. Weinmann, "Smoothing splines for discontinuous signals", 2022
+M. Storath, A. Weinmann, "Smoothing splines for discontinuous signals", arXiv:2211.12785, 2022
