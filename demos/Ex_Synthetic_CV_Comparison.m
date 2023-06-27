@@ -56,7 +56,7 @@ for k=1:K
         % Compute CSSD result
         tic
         % use starting point p = 0.99 , gamma = 1
-        output_cv = cssd_cv(x, y, [], delta, [0.99; 1]);
+        output_cv = cssd_cv(x, y, [], [],  delta, [0.99; 1]);
         p_arr(k,j) = output_cv.p;
         gamma_arr(k,j) = output_cv.gamma;
         out_cssd{k,j} = cssd(x, y, output_cv.p, output_cv.gamma, [], delta);

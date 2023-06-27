@@ -38,7 +38,9 @@ rng(123)
 % result in a reasonbly good CV score for this data
 p_init = 0.4702;  
 gamma_init = 0.0069;
-output_cv = cssd_cv(x, y, [], [], [p_init; gamma_init], 'verbose', 1);
+tic
+output_cv = cssd_cv(x, y, [], [], [], [p_init; gamma_init], 'verbose', 1, 'pruning', 'FPVI');
+runtime_fpvi = toc
 
 %% cssd estimation
 p = output_cv.p;
@@ -68,3 +70,14 @@ xticklabels(dates_ext_str(round(xticks),:));
 hold off
 leg = legend;
 legend(leg.String{1:3})
+
+%% run again with the PELT pruning for runtime comparison
+rng(123)
+
+% starting the optimization with these fine-tuned initial values turned out to 
+% result in a reasonbly good CV score for this data
+p_init = 0.4702;  
+gamma_init = 0.0069;
+tic
+output_cv = cssd_cv(x, y, [], [], [], [p_init; gamma_init], 'verbose', 1, 'pruning', 'PELT');
+runtime_pelt = toc

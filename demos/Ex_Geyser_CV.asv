@@ -85,8 +85,7 @@ hold off
 box off
 
 %%
-% repeat the experiment with the PELT pruning for runtime comparison with
-% FPVI pruning
+% repeat the experiment with the PELT pruning for runtime comparison with F
 rng(123)
 p_init = 0.59; gamma_init = 526.7;
 tic

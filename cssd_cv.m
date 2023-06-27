@@ -1,7 +1,7 @@
-function output = cssd_cv(x, y, folds_cell, delta, startingPoint, varargin)
+function output = cssd_cv(x, y, cv_type, cv_arg, delta, startingPoint, varargin)
 %CSSD_CV K-Fold cross validation for cubic smoothing spline with discontinuities 
 %
-%   cssd_cv(x, y, folds_cell, delt, xx, delta)  automatically determines
+%   cssd_cv(x, y, cv_type, cv_arg, delta, startingPoint, varargin)  automatically determines
 % the model parameters p and gamma of a CSSD model based on minimization of 
 % a K-fold cross validation score. 
 % 
@@ -16,8 +16,9 @@ function output = cssd_cv(x, y, folds_cell, delta, startingPoint, varargin)
 %
 % y: vector of same lenght as x or matrix where y(:,i) is a data vector at site x(i)
 %
-% folds_cell (optional): a cell array of index vectors corresponding to the
-% K folds (if [] the 5 folds are chosen randomly)
+% cv_type (optional): 'random', 'equi', or 'custom'
+% cv_arg (optional): a cell array of index vectors corresponding to the
+% K folds (only relevant for CV-type 'custom')
 % 
 % startingPoint (optional): Starting point startingPoint = [p; gamma] for the optimizer
 % (default is [0.5; 1])
@@ -42,46 +43,66 @@ function output = cssd_cv(x, y, folds_cell, delta, startingPoint, varargin)
 
 
 if nargin < 3
-    folds_cell = {};
+    cv_type = [];
 end
 if nargin < 4
-    delta = [];
+    cv_arg = [];
 end
 if nargin < 5
+    delta = [];
+end
+if nargin < 6
     startingPoint = [];
 end
 
 p = inputParser;
 addOptional(p,'verbose', 0);
 addOptional(p,'maxTime', Inf);
+addOptional(p,'pruning', 'FPVI');
 parse(p,varargin{:});
 verbose = p.Results.verbose;
 maxTime = p.Results.maxTime;
+pruning_method = p.Results.pruning;
 
 if isempty(delta)
     delta = ones(size(x));
 end
 
-% checks arguments and creates column vectors (chckxywp is Matlab built in)
-% Matlab uses the parameter w which is related to delta of De Boor's book by w = 1./delta.^2
-w = 1./delta.^2;
-[xi,yi,~,wi] = chckxywp(x,y,2,w,0);
-deltai = sqrt(1./wi);
+%check data
+[xi, yi, ~, deltai] = chkxydelta(x, y, delta);
 
 [N,D] = size(yi);
 
 % create folds if not given
-if isempty(folds_cell)
-    folds_cell = kfoldcv_split(N, 5);
+if isempty(cv_type)
+    cv_type = 'random';
+    cv_arg = 5;
 end
 
-gamma_tf = @(b) atan(b) * 2/pi;
-gamma_itf = @(a) (tan(a * pi/2));
+switch cv_type
+    case 'random'
+        folds_cell = kfoldcv_split(N, cv_arg);
+    case 'equi'
+        folds_cell = cell(cv_arg, 1);
+        for i = 1:cv_arg
+            folds_cell{i} = i:cv_arg:N;
+        end
+    case 'custom'
+        folds_cell = cv_arg;
+    otherwise
+        error('This CV method is unknown.')
+end
 
+%gamma_tf = @(b) atan(b) * 2/pi;
+%gamma_itf = @(a) (tan(a * pi/2));
+% parametrize gamma = p * q/(1-q)
+gamma_pq = @(p,q) p * (q / (1-q));
 
 % generate cv score function
-cv_fun = @(p, gamma) cssd_cvscore(xi, yi, p, gamma, deltai, folds_cell);
-cv_fun_vec = @(z) cv_fun(z(1), gamma_itf(z(2))); % vectorised and transformed version for optimization
+cv_fun = @(p, gamma) cssd_cvscore(xi, yi, p, gamma, deltai, folds_cell, pruning_method);
+%cv_fun_vec = @(z) cv_fun(z(1), gamma_itf(z(2))); % vectorised and transformed version for optimization
+
+cv_fun_vec = @(z) cv_fun(z(1), gamma_pq(z(1), z(2))); % vectorised and transformed version for optimization
 
 % perform optimization
 saoptions = {@simulannealbnd,'MaxTime', maxTime};
@@ -89,15 +110,28 @@ options = {};
 if verbose
     saoptions = {saoptions{:},  'Display','iter','PlotFcns', {@saplotbestx,@saplotbestf,@saplotx,@saplotf}};
     options = {options{:}, 'Display','iter', 'PlotFcns', {@optimplotx, @optimplotfunccount, @optimplotfval}};
+else
+    saoptions = {saoptions{:},  'Display','off'};
+    options = {options{:}, 'Display','off'};
 end
+
+
 
 % set starting point of optimizers
 if isempty(startingPoint)
-    startingPoint = [0.5; 1]; % starting values: p =0.5, gamma = 1
+    %startingPoint = [0.5; 1]; % starting values: p =0.5, gamma = 1
+    startingPoint_tf = [0.5; 0.5]; % starting values: p =0.5, q = 0.5
+else
+    p = startingPoint(1);
+    gamma = startingPoint(2);
+    startingPoint_tf = [p; gamma / (p + gamma)];
 end
 
 % transform starting point to lie in the unit square [0,1]^2
-startingPoint_tf = [startingPoint(1); gamma_tf(startingPoint(2))];
+%startingPoint_tf = [startingPoint(1); gamma_tf(startingPoint(2))];
+%startingPoint_tf = [startingPoint(1); startingPoint(1) * gamma_tf(startingPoint(2))];
+
+
 % invoke chain of standard derivative-free optimizers on [0,1]^2: simulated
 % annealing followed by Nelder-Mead simplex downhill
 [improvedPoint_tf, cv_score] = simulannealbnd(cv_fun_vec, startingPoint_tf, [0;0], [1;1], optimoptions(saoptions{:})); % simulated annealing
@@ -105,13 +139,16 @@ startingPoint_tf = [startingPoint(1); gamma_tf(startingPoint(2))];
 
 % improved p and gamma
 p = improvedPoint_tf(1);
-gamma = gamma_itf(improvedPoint_tf(2)); % transform gamma back to [0, Inf)
+%gamma = gamma_itf(improvedPoint_tf(2)); % transform gamma back to [0, Inf)
+%gamma = gamma_itf(improvedPoint_tf(2)/improvedPoint_tf(1)); % transform gamma back to [0, Inf)
+gamma = gamma_pq(improvedPoint_tf(1), improvedPoint_tf(2));
 
 % set ouptput
 output.p = p;
 output.gamma = gamma;
 output.cv_score = cv_score;
 output.cv_fun = cv_fun;
+
 
 end
 
