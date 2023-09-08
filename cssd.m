@@ -263,7 +263,7 @@ else
                 end
                 %%% END PELT PRUNING
 
-            %%% BEGIN FPVVI PRUNING
+            %%% BEGIN FPVI PRUNING
             otherwise
                 for rb=3:N
 

@@ -73,11 +73,28 @@ legend(leg.String{1:3})
 
 %% run again with the PELT pruning for runtime comparison
 rng(123)
-
-% starting the optimization with these fine-tuned initial values turned out to 
-% result in a reasonbly good CV score for this data
-p_init = 0.4702;  
-gamma_init = 0.0069;
 tic
 output_cv = cssd_cv(x, y, [], [], [], [p_init; gamma_init], 'verbose', 1, 'pruning', 'PELT');
 runtime_pelt = toc
+
+%% plot result
+xx = linspace(min(x), max(x),100000);
+fig = figure(1);
+clf;
+set(gcf, 'name', 'Stock', 'Color', 'white', 'units','normalized', 'position', [0,0,0.3,0.3]);
+plot([],[])
+hold on
+output.pcw_fun.plot(xx, '-', 'Linewidth', 2, 'Color', '#77AC30', 'DisplayName', 'CSSD')
+plot(x, y, '.k', 'Markersize', 0.5, 'DisplayName', 'Data')
+legend('Location', 'NorthWest')
+xlim([min(xx), max(xx)])
+for i = 1:numel(discont)
+    plot([discont(i), discont(i)], ylim, '--', 'Color', '#999999', 'DisplayName','')
+end
+xticks(discont);
+xtickangle(60)
+dates_ext_str = datestr(dates_ext);
+xticklabels(dates_ext_str(round(xticks),:));
+hold off
+leg = legend;
+legend(leg.String{1:3})

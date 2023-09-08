@@ -5,6 +5,8 @@ from ruptures.base import BaseCost
 import time
 import cProfile
 import pstats
+import math
+
 
 class CSSD_baseline(BaseCost):
 
@@ -64,8 +66,11 @@ def detect_changepoints(x,y, p, gamma, delta):
     cost.num_elems = 0
     
     # invoke PELT method
-    algo = rpt.Pelt(custom_cost=cost, min_size=1, jump=1).fit(y)
-    result = algo.predict(pen=gamma)
+    if math.isinf(gamma):
+        result = []
+    else:
+        algo = rpt.Pelt(custom_cost=cost, min_size=1, jump=1).fit(y)
+        result = algo.predict(pen=gamma)
     elapsed_time = time.time() - start_time
     
     return result, elapsed_time, cost.num_calls, cost.num_elems
