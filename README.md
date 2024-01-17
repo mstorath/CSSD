@@ -59,3 +59,7 @@ represent the results of the shown sample realization.	 The shaded areas depict 
 ## Reference
 
 M. Storath, A. Weinmann, "Smoothing splines for discontinuous signals", arXiv:2211.12785, 2022
+
+## See also 
+
+- [Degrees of freedom penalized regression](https://github.com/SV-97/pcw-regrs)
