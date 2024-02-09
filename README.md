@@ -62,4 +62,7 @@ M. Storath, A. Weinmann, "Smoothing splines for discontinuous signals", arXiv:22
 
 ## See also 
 
+- [Higher order Mumford-Shah models (discrete splines with discontinuities)](https://github.com/lu-kie/HOMS_SignalProcessing)
 - [Degrees of freedom penalized regression](https://github.com/SV-97/pcw-regrs)
+- [Pottslab](https://github.com/mstorath/Pottslab)
+- [L1TV regularization](https://github.com/mstorath/L1TV)
