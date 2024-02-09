@@ -2,7 +2,7 @@
 
 This is a reference implementation in Matlab for the algorithms described in the paper
 
-**M. Storath, A. Weinmann, "Smoothing splines for discontinuous signals", to appear in Journal of Computational and Graphical Statistics, 2023, [[Preprint](
+**M. Storath, A. Weinmann, "Smoothing splines for discontinuous signals", Journal of Computational and Graphical Statistics, 2023, [[Preprint](
 https://doi.org/10.48550/arXiv.2211.12785)]**
 
 ## Overview of main functionalities
@@ -58,7 +58,7 @@ represent the results of the shown sample realization.	 The shaded areas depict 
 
 ## Reference
 
-M. Storath, A. Weinmann, "Smoothing splines for discontinuous signals", arXiv:2211.12785, 2022
+M. Storath, A. Weinmann, "Smoothing splines for discontinuous signals", Journal of Computational and Graphical Statistics, 2023
 
 ## See also 
 
