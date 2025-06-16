@@ -198,16 +198,15 @@ else
                     stored_z = z;
                 end
                 %active_list.add(2)
-                active_arrlist_endidx = 2;
                 for rb=3:N
                     % best left bound (blb) initialized with 1 corresponding to interval 1:rb
                     % corresponding Bellman value has been set in the precomputation
                     blb = 1;
                     %listIterator = active_list.listIterator(active_list.size());
                     %while (listIterator.hasPrevious())
-                    iter = active_arrlist_endidx;
-                    while active_arrlist(iter) > 1
-                        lb = active_arrlist(iter);
+                   
+                    lb = active_arrlist(rb);
+                    while lb > 1
                         eps_lr = state_cell{lb, 1};
                         R = state_cell{lb, 2};
                         z = state_cell{lb, 3};
@@ -227,14 +226,14 @@ else
                             stored_R = R;
                             stored_z = z;
                         end
-                        iter = lb;
+                        lb = active_arrlist(lb);
                     end
 
                     % store the best left bound corresponding to the right bound rb
                     partition( rb ) = blb-1;
 
                     %active_list.add(rb);
-                    active_arrlist_endidx = active_arrlist_endidx + 1;
+                    %active_arrlist_endidx = active_arrlist_endidx + 1;
                     % PELT pruning
                     %listIterator = active_list.listIterator();
 %                     while (listIterator.hasNext())
@@ -243,13 +242,13 @@ else
 %                             listIterator.remove();
 %                         end
 %                     end
-                    iter = active_arrlist_endidx;
-                    while active_arrlist(iter) > 1
-                        lb = active_arrlist(iter);
+                    lb = active_arrlist(rb);
+                    while lb > 1
+                        next = active_arrlist(lb);
                         if F(lb-1) + state_cell{lb, 1} > F(rb)
-                            active_arrlist(iter) = active_arrlist(lb);
+                            active_arrlist(lb) = next;
                         end
-                        iter = lb;
+                        lb = next;
                     end
 
                     if rb < N
