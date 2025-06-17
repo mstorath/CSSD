@@ -5,7 +5,7 @@ classdef TestCSSD < matlab.unittest.TestCase
     end
 
     properties (TestParameter)
-        SigIdx = num2cell(7:8);    % adjust when you add/remove signals
+        SigIdx = num2cell(1:8);    % adjust when you add/remove signals
         Gammas = num2cell(10.^(-10:4));
         Ps = num2cell(linspace(0, 1, 30));
     end
