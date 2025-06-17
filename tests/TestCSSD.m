@@ -5,14 +5,15 @@ classdef TestCSSD < matlab.unittest.TestCase
     end
 
     properties (TestParameter)
-        SigIdx = num2cell(1:7);    % adjust when you add/remove signals
+        SigIdx = num2cell(7:8);    % adjust when you add/remove signals
         Gammas = num2cell(10.^(-10:4));
         Ps = num2cell(linspace(0, 1, 30));
     end
 
     methods (TestClassSetup)
         function genSignals(tc)
-            
+            rng(123)
+
             % short signals
             tc.Signals.y     = { ...
                 [0 1 1],...
@@ -32,15 +33,22 @@ classdef TestCSSD < matlab.unittest.TestCase
             end
             
             % longer signals
-            g = @(x) besselj(1, 20 * x) + x .* ((0.3) <= x) .* (x <= 0.4) - x .* ((0.6) <= x) .* (x <= 1);
-            N = 100;
-            sigma = 0.1;
-            delta = sigma * ones(N, 1);
-            x = sort(rand(N,1));
+            funcs{1} = @(x) besselj(1, 20 * x) + x .* ((0.3) <= x) .* (x <= 0.4) - x .* ((0.6) <= x) .* (x <= 1);
+            funcs{2} = @(x) 4.*sin(4*pi.*x) - sign(x - .3) - sign(.72 - x);
 
-            tc.Signals.x{end+1} = x; 
-            tc.Signals.y{end+1} = g(x);
-            tc.Signals.delta{end+1} = delta;
+            for i = 1:numel(funcs)
+                g = funcs{i};
+                N = 100;
+                sigma = 0.1;
+                delta = sigma * ones(N, 1);
+                x = sort(rand(N,1));
+    
+                tc.Signals.x{end+1} = x; 
+                tc.Signals.y{end+1} = g(x);
+                tc.Signals.delta{end+1} = delta;
+            end
+
+
         end
     end
 

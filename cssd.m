@@ -64,7 +64,7 @@ rcv_score = 0;
 complexity_counter = 0;
 
 parser = inputParser;
-addOptional(parser, 'pruning', 'PELT');
+addOptional(parser, 'pruning', 'FPVI');
 parse(parser, varargin{:});
 pruning = parser.Results.pruning;
 
@@ -184,8 +184,7 @@ else
 
             %%% BEGIN PELT Pruning
             case 'PELT'
-                active_arrlist = 0:N-1; % pointers to previous index
-                %active_list = java.util.LinkedList();
+                active_list = java.util.LinkedList();
 
                 state_cell = cell(N, 3);
                 for rb=2:N-1
@@ -197,16 +196,14 @@ else
                     stored_R = R;
                     stored_z = z;
                 end
-                %active_list.add(2)
+                active_list.add(2);
                 for rb=3:N
                     % best left bound (blb) initialized with 1 corresponding to interval 1:rb
                     % corresponding Bellman value has been set in the precomputation
                     blb = 1;
-                    %listIterator = active_list.listIterator(active_list.size());
-                    %while (listIterator.hasPrevious())
-                   
-                    lb = active_arrlist(rb);
-                    while lb > 1
+                    listIterator = active_list.listIterator(active_list.size());
+                    while (listIterator.hasPrevious())
+                        lb = listIterator.previous();
                         eps_lr = state_cell{lb, 1};
                         R = state_cell{lb, 2};
                         z = state_cell{lb, 3};
@@ -226,30 +223,25 @@ else
                             stored_R = R;
                             stored_z = z;
                         end
-                        lb = active_arrlist(lb);
+                        %lb = active_arrlist(lb);
                     end
 
                     % store the best left bound corresponding to the right bound rb
                     partition( rb ) = blb-1;
+                    
+                    active_list.add(rb);
 
-                    %active_list.add(rb);
-                    %active_arrlist_endidx = active_arrlist_endidx + 1;
                     % PELT pruning
-                    %listIterator = active_list.listIterator();
-%                     while (listIterator.hasNext())
-%                         lb = listIterator.next();
-%                         if F(lb-1) + state_cell{lb, 1} > F(rb)
-%                             listIterator.remove();
-%                         end
-%                     end
-                    lb = active_arrlist(rb);
-                    while lb > 1
-                        next = active_arrlist(lb);
+                    listIterator = active_list.listIterator(active_list.size());
+
+                    while (listIterator.hasPrevious())
+                        lb = listIterator.previous();
                         if F(lb-1) + state_cell{lb, 1} > F(rb)
-                            active_arrlist(lb) = next;
+                            listIterator.remove();
                         end
-                        lb = next;
                     end
+                    
+                    
 
                     if rb < N
                         % compute estimated point and slope at end
@@ -260,8 +252,13 @@ else
                         rcv_score = rcv_score + sum( (a_end + b_end * (xi(rb+1) - xi(rb)) - yi(rb+1,:)).^2 );
                     end
                 end
-                %%% END PELT PRUNING
+                
+                % print for debugging
+                %fprintf(['PELT pruned fraction:' num2str(1 - active_list.size()/N) '\n']);
 
+
+                %%% END PELT PRUNING
+                
             %%% BEGIN FPVI PRUNING
             otherwise
                 for rb=3:N
@@ -324,6 +321,8 @@ else
         %%% END MAIN LOOP
     end
     %%% END CSSD CASE
+    
+    
 
     %%% BEGIN RECONSTRUCTION
     % the discontinuity locations are coded in the array 'partition'. The
