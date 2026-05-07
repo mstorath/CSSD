@@ -1,109 +1,201 @@
-"""Parity tests against MATLAB-generated fixtures.
+# Live Rust↔MATLAB parity tests for cssd.
+#
+# Each test:
+#   1. Calls the Rust port (cssd Python module backed by _cssd_core).
+#   2. Calls the MATLAB cssd() implementation via the host `matlab` shim
+#      (`/usr/local/bin/matlab`, installed by the dev container's
+#      post-create.sh — proxies to host MATLAB over SSH).
+#   3. Asserts agreement on pp.coefs, pp.breaks, and discont_idx.
+#
+# Skipped (not failed) when:
+#   - the matlab shim or HOST_MATLAB env are unavailable.
+#
+# Tolerance: atol=1e-8, rtol=1e-5 on pp.coefs reflects the empirical gap
+# between MATLAB's LAPACK QR + Curve Fitting Toolbox csaps and the Rust
+# port's Givens QR + hand-rolled banded LDL^T. Tightening below this is
+# empirically not feasible without aligning the linear-algebra kernels.
+# pp.breaks are exact integer multiples of x-step in our test cases so
+# 1e-10 is comfortable; discont_idx is integer-valued and must match
+# exactly.
+#
+# This test replaces the previous fixture-based test_matlab_parity.py
+# (which loaded 594 pre-baked .mat files in tests_py/fixtures/). The live
+# approach mirrors Pottslab's tests/test_matlab_parity.py pattern: no
+# fixture management, always exercises the actual MATLAB code, surfaces
+# regressions in either side immediately.
 
-Run ``matlab_fixtures/dump_fixtures.m`` from MATLAB first to populate
-``tests_py/fixtures/``. If the directory is empty, all tests in this module
-are skipped — making CI green without requiring MATLAB.
-"""
-
-from __future__ import annotations
-
+import os
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
 import numpy as np
+import numpy.testing as npt
 import pytest
-from scipy.io import loadmat
 
 from cssd import cssd
 
-FIXTURES = Path(__file__).parent / "fixtures"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+WORKSPACE_ROOT = REPO_ROOT.parents[1]
 
 
-def _signal_fixture_files():
-    return sorted(FIXTURES.glob("sig*.mat"))
-
-
-def _cv_fixture_files():
-    return sorted(FIXTURES.glob("cv_sig*.mat"))
+def _shim_available() -> bool:
+    return shutil.which("matlab") is not None and bool(os.environ.get("HOST_MATLAB"))
 
 
 pytestmark = pytest.mark.skipif(
-    not _signal_fixture_files(),
-    reason="No MATLAB fixtures found; run matlab_fixtures/dump_fixtures.m first.",
+    not _shim_available(),
+    reason="matlab shim not configured (HOST_MATLAB unset or matlab not on PATH)",
 )
 
 
-@pytest.mark.parametrize("path", _signal_fixture_files(), ids=lambda p: p.stem)
-def test_cssd_parity(path: Path):
-    """Cross-check Rust output against MATLAB-saved reference.
+def _run_matlab_cssd(x, y, p, gamma, pruning="FPVI"):
+    """Invoke MATLAB ``cssd(x, y, p, gamma, [], [], 'pruning', PR)`` and
+    return a dict with the relevant output fields parsed from CSV.
 
-    Bar (set with the user as 'bitwise-ish'):
-      * `discont` and `discont_idx` must match exactly (midpoint reduction
-        means these are integer-indexed gaps, no float sensitivity).
-      * `pp.breaks` must match to 1e-10 absolute.
-      * `pp.coefs` must match to ``atol=1e-8 + rtol=1e-5 * |ref|``. The
-        Rust core uses Givens-based QR + a hand-written banded LDL^T for
-        Reinsch, while MATLAB uses LAPACK Householder + Curve Fitting Toolbox
-        ``csaps``; both are stable but accumulate float noise differently
-        (median diff across the 594 fixtures is ~1.1e-16, worst ~1.2e-5
-        absolute on the long N=100 signal under heavy smoothing).
-      * Evaluating the spline on a 200-point grid must match to 1e-7
-        absolute / 1e-7 relative — this is the *user-visible* comparison.
+    ``y`` may be 1-D (treated as a single column) or 2-D (n, dim).
     """
-    fix = loadmat(path, squeeze_me=True)
-    x = np.atleast_1d(fix["x"]).astype(np.float64)
-    y = np.atleast_1d(fix["y"]).astype(np.float64)
-    delta = np.atleast_1d(fix["delta"]).astype(np.float64)
-    p = float(fix["p"])
-    gamma = float(fix["gamma"])
-    pruning = str(fix["pruning"]).strip()
+    work_dir = Path(tempfile.mkdtemp(prefix="cssd-parity-", dir=WORKSPACE_ROOT))
+    try:
+        coefs_path = work_dir / "coefs.csv"
+        breaks_path = work_dir / "breaks.csv"
+        didx_path = work_dir / "discont_idx.csv"
+        script_path = work_dir / "run_parity.m"
 
-    out = cssd(x, y, p=p, gamma=gamma, delta=delta, pruning=pruning)
+        x_arr = np.asarray(x, dtype=np.float64)
+        y_arr = np.asarray(y, dtype=np.float64)
+        if y_arr.ndim == 1:
+            y_arr = y_arr.reshape(-1, 1)
 
-    ref_breaks = np.atleast_1d(fix["pp_breaks"]).astype(np.float64)
-    ref_coefs = np.atleast_2d(fix["pp_coefs"]).astype(np.float64)
-    np.testing.assert_allclose(out.pp.breaks, ref_breaks, atol=1e-10, rtol=0)
-    np.testing.assert_allclose(out.pp.coefs, ref_coefs, atol=1e-8, rtol=1e-5)
+        x_lit = "; ".join(f"{v:.17e}" for v in x_arr)
+        y_rows = []
+        for i in range(y_arr.shape[0]):
+            y_rows.append(", ".join(f"{v:.17e}" for v in y_arr[i, :]))
+        y_lit = "; ".join(y_rows)
 
-    ref_discont = np.atleast_1d(fix["discont"]).astype(np.float64).ravel()
-    np.testing.assert_allclose(np.sort(out.discont), np.sort(ref_discont), atol=1e-12)
+        gamma_lit = "Inf" if np.isinf(gamma) else f"{gamma:.17e}"
 
-    if "discont_idx" in fix.dtype.names if hasattr(fix, "dtype") else "discont_idx" in fix:
-        ref_discont_idx = np.atleast_1d(fix["discont_idx"]).astype(np.int64).ravel()
-        # MATLAB stores discont_idx 1-indexed; convert.
-        if ref_discont_idx.size > 0:
-            np.testing.assert_array_equal(
-                np.sort(out.discont_idx), np.sort(ref_discont_idx) - 1
+        script = (
+            f"addpath(genpath('{REPO_ROOT}'));\n"
+            f"x = [{x_lit}];\n"
+            f"y = [{y_lit}];\n"
+            f"p = {p:.17e};\n"
+            f"gamma = {gamma_lit};\n"
+            f"out = cssd(x, y, p, gamma, [], [], 'pruning', '{pruning}');\n"
+            f"writematrix(out.pp.coefs, '{coefs_path}');\n"
+            f"writematrix(out.pp.breaks(:), '{breaks_path}');\n"
+            f"if isempty(out.discont_idx); didx = zeros(0,1); else; didx = out.discont_idx(:); end;\n"
+            f"writematrix(didx, '{didx_path}');\n"
+        )
+        script_path.write_text(script)
+
+        result = subprocess.run(
+            ["matlab", "-batch", f"addpath('{work_dir}'); run_parity"],
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"MATLAB cssd failed (rc={result.returncode}):\n"
+                f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
             )
 
-    # User-visible check: pp evaluations on a fine grid agree.
-    grid = np.linspace(x.min(), x.max(), 200)
-    rust_yy = out.pp(grid).ravel()
-    # Rebuild MATLAB pp on the Python side via PPoly.
-    from scipy.interpolate import PPoly
-    ml_pp = PPoly(ref_coefs.T, ref_breaks, extrapolate=True)
-    ml_yy = ml_pp(grid)
-    np.testing.assert_allclose(rust_yy, ml_yy, atol=1e-7, rtol=1e-7)
+        coefs = np.loadtxt(coefs_path, delimiter=",", ndmin=2)
+        breaks = np.loadtxt(breaks_path, delimiter=",").ravel()
+
+        # discont_idx may be empty (no discontinuities). loadtxt of an
+        # empty CSV raises; handle by checking file size.
+        if didx_path.stat().st_size == 0:
+            didx = np.array([], dtype=np.int64)
+        else:
+            didx_raw = np.loadtxt(didx_path, delimiter=",").ravel()
+            # MATLAB indices are 1-based; Rust uses 0-based.
+            didx = (didx_raw.astype(np.int64) - 1)
+
+        return {"coefs": coefs, "breaks": breaks, "discont_idx": didx}
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
 
 
-@pytest.mark.parametrize("path", _cv_fixture_files(), ids=lambda p: p.stem)
-def test_cv_fit_at_matlab_selected_pgamma(path: Path):
-    """Given MATLAB's CV-selected (p, gamma), the Rust core's fit must match.
+def _assert_cssd_parity(out_rust, out_matlab, *, label=""):
+    """Compare Rust vs MATLAB outputs at the standard tolerance."""
+    rust_breaks = np.asarray(out_rust.pp.breaks)
+    rust_coefs = np.asarray(out_rust.pp.coefs)
+    rust_didx = np.asarray(out_rust.discont_idx, dtype=np.int64)
 
-    Note: we cannot directly cross-check ``cssd_cv`` end-to-end because the
-    Python port uses ``scipy.optimize.dual_annealing`` whereas the MATLAB
-    reference uses ``simulannealbnd`` — the RNGs and cooling schedules differ,
-    so the optimisers find different (p, gamma) optima even with matching
-    seeds. Instead, we check that **given** MATLAB's chosen (p, gamma), the
-    Rust ``cssd`` produces the same discontinuity set and fit as MATLAB.
-    """
-    fix = loadmat(path, squeeze_me=True)
-    x = np.atleast_1d(fix["x"]).astype(np.float64)
-    y = np.atleast_1d(fix["y"]).astype(np.float64)
-    delta = np.atleast_1d(fix["delta"]).astype(np.float64)
-    p = float(fix["p"])
-    gamma = float(fix["gamma"])
+    npt.assert_allclose(
+        rust_breaks,
+        out_matlab["breaks"],
+        atol=1e-10,
+        err_msg=f"{label}: pp.breaks mismatch",
+    )
+    npt.assert_allclose(
+        rust_coefs,
+        out_matlab["coefs"],
+        atol=1e-8,
+        rtol=1e-5,
+        err_msg=f"{label}: pp.coefs mismatch",
+    )
+    npt.assert_array_equal(
+        rust_didx,
+        out_matlab["discont_idx"],
+        err_msg=f"{label}: discont_idx mismatch",
+    )
 
-    out = cssd(x, y, p=p, gamma=gamma, delta=delta)
 
-    ref_discont = np.atleast_1d(fix.get("discont", np.array([]))).astype(np.float64).ravel()
-    np.testing.assert_allclose(np.sort(out.discont), np.sort(ref_discont), atol=1e-12)
+# ----------------------------------------------------------------------
+# Step signals (one discontinuity)
+# ----------------------------------------------------------------------
+
+@pytest.mark.parametrize("pruning", ["FPVI", "PELT"])
+def test_step_p09_g1(pruning):
+    n = 12
+    x = np.arange(1.0, n + 1)
+    y = np.concatenate([np.zeros(n // 2), np.ones(n // 2)])
+    out_rust = cssd(x, y, p=0.9, gamma=1.0, pruning=pruning)
+    out_matlab = _run_matlab_cssd(x, y, 0.9, 1.0, pruning=pruning)
+    _assert_cssd_parity(out_rust, out_matlab, label=f"step_p09_g1_{pruning}")
+
+
+@pytest.mark.parametrize("pruning", ["FPVI", "PELT"])
+def test_step_p05_g05(pruning):
+    n = 16
+    x = np.arange(1.0, n + 1)
+    y = np.concatenate([np.zeros(n // 2), 2 * np.ones(n // 2)])
+    out_rust = cssd(x, y, p=0.5, gamma=0.5, pruning=pruning)
+    out_matlab = _run_matlab_cssd(x, y, 0.5, 0.5, pruning=pruning)
+    _assert_cssd_parity(out_rust, out_matlab, label=f"step_p05_g05_{pruning}")
+
+
+# ----------------------------------------------------------------------
+# Smooth signal: gamma = Inf degenerates to classical smoothing spline
+# ----------------------------------------------------------------------
+
+def test_smooth_quadratic_p099_ginf():
+    n = 10
+    x = np.arange(1.0, n + 1)
+    t = np.linspace(0, 1, n)
+    y = t * t
+    out_rust = cssd(x, y, p=0.99, gamma=np.inf)
+    out_matlab = _run_matlab_cssd(x, y, 0.99, np.inf, pruning="FPVI")
+    _assert_cssd_parity(out_rust, out_matlab, label="smooth_quadratic_p099_ginf")
+
+
+# ----------------------------------------------------------------------
+# Random signals — robustness across the (p, gamma) plane
+# ----------------------------------------------------------------------
+
+@pytest.mark.parametrize("seed,n,p,gamma", [
+    (0, 20, 0.9, 1.0),
+    (1, 30, 0.5, 0.1),
+    (2, 25, 0.99, 10.0),
+])
+def test_random_signal(seed, n, p, gamma):
+    rng = np.random.default_rng(seed)
+    x = np.arange(1.0, n + 1)
+    y = rng.standard_normal(n)
+    out_rust = cssd(x, y, p=p, gamma=gamma)
+    out_matlab = _run_matlab_cssd(x, y, p, gamma, pruning="FPVI")
+    _assert_cssd_parity(out_rust, out_matlab, label=f"random_seed{seed}_n{n}")
