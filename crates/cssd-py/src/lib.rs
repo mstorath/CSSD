@@ -58,44 +58,44 @@ fn cssd<'py>(
     )
     .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
 
-    let dict = PyDict::new_bound(py);
-    dict.set_item("breaks", out.pp.breaks.into_pyarray_bound(py))?;
-    dict.set_item("coefs", out.pp.coefs.into_pyarray_bound(py))?;
+    let dict = PyDict::new(py);
+    dict.set_item("breaks", out.pp.breaks.into_pyarray(py))?;
+    dict.set_item("coefs", out.pp.coefs.into_pyarray(py))?;
     dict.set_item("dim", out.pp.dim)?;
     dict.set_item("order", out.pp.order)?;
-    dict.set_item("discont", out.discont.into_pyarray_bound(py))?;
+    dict.set_item("discont", out.discont.into_pyarray(py))?;
     let discont_idx_i64: Vec<i64> = out.discont_idx.iter().map(|&i| i as i64).collect();
     dict.set_item(
         "discont_idx",
-        ndarray::Array1::from_vec(discont_idx_i64).into_pyarray_bound(py),
+        ndarray::Array1::from_vec(discont_idx_i64).into_pyarray(py),
     )?;
-    dict.set_item("x", out.x.into_pyarray_bound(py))?;
-    dict.set_item("y", out.y.into_pyarray_bound(py))?;
+    dict.set_item("x", out.x.into_pyarray(py))?;
+    dict.set_item("y", out.y.into_pyarray(py))?;
     dict.set_item("complexity_counter", out.complexity_counter as u64)?;
 
-    let intervals = PyList::empty_bound(py);
+    let intervals = PyList::empty(py);
     for iv in &out.interval_cell {
         let v: Vec<i64> = iv.iter().map(|&i| i as i64).collect();
-        intervals.append(ndarray::Array1::from_vec(v).into_pyarray_bound(py))?;
+        intervals.append(ndarray::Array1::from_vec(v).into_pyarray(py))?;
     }
     dict.set_item("interval_cell", intervals)?;
 
-    let pps = PyList::empty_bound(py);
+    let pps = PyList::empty(py);
     for pp in &out.pp_cell {
-        let d = PyDict::new_bound(py);
-        d.set_item("breaks", pp.breaks.clone().into_pyarray_bound(py))?;
-        d.set_item("coefs", pp.coefs.clone().into_pyarray_bound(py))?;
+        let d = PyDict::new(py);
+        d.set_item("breaks", pp.breaks.clone().into_pyarray(py))?;
+        d.set_item("coefs", pp.coefs.clone().into_pyarray(py))?;
         d.set_item("dim", pp.dim)?;
         d.set_item("order", pp.order)?;
         pps.append(d)?;
     }
     dict.set_item("pp_cell", pps)?;
 
-    dict.set_item("F", ndarray::Array1::from_vec(out.f).into_pyarray_bound(py))?;
+    dict.set_item("F", ndarray::Array1::from_vec(out.f).into_pyarray(py))?;
     let part_i64: Vec<i64> = out.partition.iter().map(|&i| i as i64).collect();
     dict.set_item(
         "partition",
-        ndarray::Array1::from_vec(part_i64).into_pyarray_bound(py),
+        ndarray::Array1::from_vec(part_i64).into_pyarray(py),
     )?;
 
     let precondition_str = match out.precondition {
@@ -103,7 +103,7 @@ fn cssd<'py>(
         Preconditioning::Local => "local",
     };
     dict.set_item("precondition", precondition_str)?;
-    dict.set_item("tau", out.tau.into_pyarray_bound(py))?;
+    dict.set_item("tau", out.tau.into_pyarray(py))?;
 
     Ok(dict)
 }
