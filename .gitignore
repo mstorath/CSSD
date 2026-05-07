@@ -20,13 +20,9 @@ python/cssd/_cssd_core*
 /target/
 Cargo.lock.bak
 
-# Test fixtures (generated locally from MATLAB by matlab_fixtures/dump_fixtures.m)
-tests_py/fixtures/
-
 # Internal / historical docs not shipped to PyPI
 PORTING_NOTES.md
 PAPER_COMPLIANCE.md
-matlab_fixtures/
 
 # Devcontainer
 .devcontainer/
