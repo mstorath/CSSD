@@ -6,9 +6,12 @@ All notable changes to `cssd` are documented here. This project adheres to
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-05-07
+## [1.0.1] - 2026-05-07
 
-First public release.
+First PyPI release. Continues the version line of the MATLAB reference
+implementation (last MATLAB tag: `v1.0.0`); the Rust core and Python
+bindings introduced here ship under the next patch version so MATLAB
+and Python consumers see a single coherent release history.
 
 ### Added
 - Rust core (`cssd-core`) implementing cubic smoothing splines with

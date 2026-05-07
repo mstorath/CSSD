@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/cssd-core", "crates/cssd-py"]
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.1"
 edition = "2021"
 rust-version = "1.75"
 license = "MIT"
