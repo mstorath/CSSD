@@ -38,7 +38,10 @@ fn repo_root() -> PathBuf {
 
 fn workspace_root() -> PathBuf {
     // .../devcontainer/10-OwnRepos/CSSD -> .../devcontainer
-    repo_root().join("../..").canonicalize().expect("workspace root resolves")
+    repo_root()
+        .join("../..")
+        .canonicalize()
+        .expect("workspace root resolves")
 }
 
 fn make_workspace_tempdir() -> PathBuf {
@@ -70,7 +73,11 @@ fn read_csv_2d(path: &std::path::Path) -> Array2<f64> {
         .filter(|l| !l.trim().is_empty())
         .map(|l| {
             l.split(',')
-                .map(|s| s.trim().parse::<f64>().unwrap_or_else(|_| panic!("parse {s:?}")))
+                .map(|s| {
+                    s.trim()
+                        .parse::<f64>()
+                        .unwrap_or_else(|_| panic!("parse {s:?}"))
+                })
                 .collect()
         })
         .collect();
@@ -104,7 +111,11 @@ fn run_matlab_cssd(
     let didx_path = work.join("discont_idx.csv");
     let script_path = work.join("run_parity.m");
 
-    let x_lit: String = x.iter().map(|v| format!("{v:.17e}")).collect::<Vec<_>>().join("; ");
+    let x_lit: String = x
+        .iter()
+        .map(|v| format!("{v:.17e}"))
+        .collect::<Vec<_>>()
+        .join("; ");
     let n = y.nrows();
     let d = y.ncols();
     let mut y_lit = String::new();
@@ -147,7 +158,10 @@ fn run_matlab_cssd(
     if !status.status.success() {
         let stdout = String::from_utf8_lossy(&status.stdout);
         let stderr = String::from_utf8_lossy(&status.stderr);
-        panic!("MATLAB cssd failed (rc={:?}):\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}", status.status.code());
+        panic!(
+            "MATLAB cssd failed (rc={:?}):\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}",
+            status.status.code()
+        );
     }
 
     let coefs = read_csv_2d(&coefs_path);
@@ -160,7 +174,11 @@ fn run_matlab_cssd(
     };
 
     let _ = fs::remove_dir_all(&work);
-    MatlabCssdResult { breaks, coefs, discont_idx }
+    MatlabCssdResult {
+        breaks,
+        coefs,
+        discont_idx,
+    }
 }
 
 fn assert_coefs_close(rust: &Array2<f64>, matlab: &Array2<f64>) {
@@ -196,9 +214,16 @@ fn run_parity_case(
         eprintln!("[{name}] skipping: matlab shim not configured");
         return;
     }
-    let out_rust =
-        cssd(Some(x.view()), y.view(), p, gamma, None, pruning_rust, Preconditioning::None)
-            .expect("rust cssd ok");
+    let out_rust = cssd(
+        Some(x.view()),
+        y.view(),
+        p,
+        gamma,
+        None,
+        pruning_rust,
+        Preconditioning::None,
+    )
+    .expect("rust cssd ok");
     let out_matlab = run_matlab_cssd(&x, &y, p, gamma, pruning_matlab);
 
     assert_relative_eq!(
