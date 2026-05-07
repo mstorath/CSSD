@@ -9,15 +9,29 @@ description = "Cubic smoothing splines for discontinuous signals (CSSD)"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
-    { name = "Martin Storath" },
-    { name = "Andreas Weinmann" },
+    { name = "Martin Storath", email = "martin.storath@thws.de" },
+    { name = "Andreas Weinmann", email = "andreas.weinmann@thws.de" },
 ]
 requires-python = ">=3.9"
+keywords = [
+    "smoothing-spline",
+    "discontinuities",
+    "signal-processing",
+    "edge-preserving",
+    "variational-methods",
+    "piecewise",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Rust",
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
@@ -32,8 +46,10 @@ test = ["pytest>=7", "scipy>=1.10"]
 dev = ["maturin>=1.7", "pytest>=7", "matplotlib>=3.6"]
 
 [project.urls]
+Homepage = "https://github.com/mstorath/CSSD"
 Repository = "https://github.com/mstorath/CSSD"
-Issues = "https://github.com/mstorath/CSSD/issues"
+Changelog = "https://github.com/mstorath/CSSD/blob/main/CHANGELOG.md"
+"Bug Tracker" = "https://github.com/mstorath/CSSD/issues"
 
 [tool.maturin]
 manifest-path = "crates/cssd-py/Cargo.toml"

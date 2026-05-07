@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite both the software and the associated paper below."
+title: "CSSD: Cubic smoothing splines for discontinuous signals"
+abstract: "Reference implementation (MATLAB and Rust/Python port) of cubic smoothing splines for signals with a priori unknown discontinuities. Solves a piecewise smoothing-spline model in which both the spline coefficients and the discontinuity set are estimated jointly via dynamic programming."
+type: software
+url: "https://github.com/mstorath/CSSD"
+repository-code: "https://github.com/mstorath/CSSD"
+license: MIT
+authors:
+  - family-names: Storath
+    given-names: Martin
+    email: martin.storath@thws.de
+    orcid: "https://orcid.org/0000-0003-1427-0776"
+    affiliation: "Lab for Mathematical Methods in Computer Vision and Machine Learning, Technische Hochschule Würzburg-Schweinfurt"
+  - family-names: Weinmann
+    given-names: Andreas
+    email: andreas.weinmann@thws.de
+    orcid: "https://orcid.org/0000-0002-4969-7609"
+    affiliation: "Department of Mathematics and Natural Sciences, Hochschule Darmstadt"
+preferred-citation:
+  type: article
+  title: "Smoothing splines for discontinuous signals"
+  authors:
+    - family-names: Storath
+      given-names: Martin
+      orcid: "https://orcid.org/0000-0003-1427-0776"
+    - family-names: Weinmann
+      given-names: Andreas
+      orcid: "https://orcid.org/0000-0002-4969-7609"
+  journal: "Journal of Computational and Graphical Statistics"
+  volume: 33
+  issue: 2
+  start: 651
+  end: 665
+  year: 2024
+  publisher:
+    name: "Taylor & Francis"
+  doi: "10.1080/10618600.2023.2262000"
