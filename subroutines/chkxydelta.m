@@ -1,5 +1,14 @@
 function [xi, yi, wi, deltai] = chkxydelta(x, y, delta)
 % this is an auxiliary function for checking the input arguments of cssd
+%
+% Note (N1, audit): cssd's reconstruction loop also calls csaps with
+% p == 0 for whichever segments arise from the DP partition. MATLAB's
+% csaps internally returns the weighted-LS straight line in that case.
+% This is a Curve Fitting Toolbox detail not visible from the cssd code.
+%
+% Note: this function depends on `chckxywp` (private function shipped
+% with the Curve Fitting Toolbox). Without that toolbox, an "undefined
+% function" error is raised below.
 
 if isvector(y)
     y = y(:)';

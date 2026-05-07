@@ -1,0 +1,17 @@
+[package]
+name = "cssd-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Cubic smoothing splines with discontinuities — Rust core"
+
+[dependencies]
+ndarray = { workspace = true }
+nalgebra = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+approx = "0.5"

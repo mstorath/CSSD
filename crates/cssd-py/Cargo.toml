@@ -1,0 +1,21 @@
+[package]
+name = "cssd-py"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "PyO3 bindings for cssd-core"
+
+[lib]
+name = "_cssd_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+cssd-core = { path = "../cssd-core" }
+ndarray = { workspace = true }
+# pyo3 >= 0.24.1 closes GHSA-pph8-gcv7-4qj5 (PyString::from_object buffer
+# overread). numpy crate version tracks pyo3 minor.
+pyo3 = { version = "0.24.1", features = ["abi3-py39", "extension-module"] }
+numpy = "0.24"

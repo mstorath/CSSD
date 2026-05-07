@@ -31,12 +31,26 @@ function output = cssd(x,y,p,gamma,xx,delta,varargin)
 %
 % Output
 % output = cssd(...)
-% output.pp: ppform of a smoothing spline with discontinuities; if xx is specified,
-% the evaluation of the result at the points xx is returned
+% output.pp: ppform of a smoothing spline with discontinuities. The pp's
+%     domain extends one unit beyond [x_1, x_N] via linear extension, so
+%     evaluations outside the data range are well-defined.
+% output.yy: if xx is specified, holds ppval(output.pp, xx); otherwise [].
 % output.discont: locations of detected discontinuities, the locations are a
-% subset of the midpoints of the data sites x
-% output.interval_cell: a list of discrete indices between two discontinuities
-% output.pp_cell: a list of the cubic splines corresponding to the indices in interval_cell
+%     subset of the midpoints of the data sites x.
+% output.discont_idx: data-site index immediately before each discontinuity.
+% output.interval_cell: a list of discrete indices between two discontinuities.
+% output.pp_cell: a list of the cubic splines corresponding to the indices in
+%     interval_cell. Each is linext-extended over its segment's domain.
+% output.x, output.y: canonicalised data — duplicate sites have been
+%     aggregated by weighted average, NaN/Inf rows have been dropped.
+%     These may differ from the inputs when those operations apply.
+% output.complexity_counter: number of times an input data point was visited
+%     by the algorithm (proxy for runtime).
+% output.rcv_score: rolling-CV score (sum of squared one-step-ahead linear
+%     extrapolation residuals divided by max(N-2, 1)). FPVI extrapolates
+%     from x_{blb}; PELT extrapolates from x_{rb}; both are scale-invariant
+%     summaries useful for diagnostics.
+% output.pcw_fun: PcwFunReal handle for convenient evaluation/plotting.
 %
 %   See also CSAPS, CSSD_CV
 
@@ -47,7 +61,7 @@ if nargin<6, delta = []; end
 if isempty(delta), delta = ones(size(x)); end
 
 assert( (0 <= p) && (p <= 1), 'The p parameter must fulfill 0 <= p <= 1')
-assert( 0 <= gamma, 'The gamma parameter must fulfill 0 < gamma')
+assert( 0 <= gamma, 'The gamma parameter must fulfill 0 <= gamma')   % N5: message matches the (non-strict) check
 
 [xi, yi, wi, deltai] = chkxydelta(x, y, delta);
 
@@ -63,8 +77,11 @@ rcv_score = 0;
 % (for determination of computational complexity)
 complexity_counter = 0;
 
+% B6: validate the pruning string up front so misuse fails with a clear
+% message rather than silently falling through to FPVI in the switch below.
 parser = inputParser;
-addOptional(parser, 'pruning', 'FPVI');
+addOptional(parser, 'pruning', 'FPVI', ...
+    @(s) ischar(s) && any(strcmp(s, {'FPVI', 'PELT'})));
 parse(parser, varargin{:});
 pruning = parser.Results.pruning;
 
@@ -73,10 +90,14 @@ pruning = parser.Results.pruning;
 % also, if p == 1, we may straight compute an interpolating spline, no
 % matter how large gamma is (smoothness costs are equal to 0)
 if (gamma == Inf) || (p == 1)
+    % N8: linext + embed_to_cubic so output.pp uses the same convention as
+    % the DP branch (output.pp.breaks extends one unit beyond [x_1, x_N]).
     pp = csaps(xi,yi',p,[],wi);
+    pp = linext_pp(pp, xi(1) - 1, xi(end) + 1);
+    pp = embed_pptocubic(pp);
     discont = [];
     interval_cell = {1:N};
-    pp_cell = {fnxtr(pp,2)};
+    pp_cell = {pp};
     complexity_counter = N;
 else
     % F stores Bellmann values
@@ -193,14 +214,19 @@ else
                     state_cell{rb, 1} = eps_lr;
                     state_cell{rb, 2} = R;
                     state_cell{rb, 3} = z;
-                    stored_R = R;
-                    stored_z = z;
                 end
                 active_list.add(2);
                 for rb=3:N
                     % best left bound (blb) initialized with 1 corresponding to interval 1:rb
                     % corresponding Bellman value has been set in the precomputation
                     blb = 1;
+
+                    % B1: remember which lb was the smallest active one BEFORE
+                    % the iteration. Its state will be updated to the segment
+                    % [first_lb, rb] inside the inner loop and used as the
+                    % rolling-CV fallback if no candidate improves F(rb).
+                    first_lb = active_list.peek();
+
                     listIterator = active_list.listIterator(active_list.size());
                     while (listIterator.hasPrevious())
                         lb = listIterator.previous();
@@ -226,9 +252,19 @@ else
                         %lb = active_arrlist(lb);
                     end
 
+                    % B1: if no candidate improved F(rb) (blb still 1), fall back
+                    % to first_lb's NOW-UPDATED state, which corresponds to the
+                    % segment [first_lb, rb] — a valid segment ending at rb.
+                    % (Previously stored_R/stored_z held leftover state from
+                    % the precomputation loop, corresponding to [N-1, N].)
+                    if blb == 1
+                        stored_R = state_cell{first_lb, 2};
+                        stored_z = state_cell{first_lb, 3};
+                    end
+
                     % store the best left bound corresponding to the right bound rb
                     partition( rb ) = blb-1;
-                    
+
                     active_list.add(rb);
 
                     % PELT pruning
@@ -244,23 +280,26 @@ else
                     
 
                     if rb < N
-                        % compute estimated point and slope at end
+                        % Rolling-CV step: a_end, b_end are [f_{rb}, f'_{rb}]
+                        % because PELT's QR feed absorbs the most recently added
+                        % knot (rb) on the right, so the last 2 unknowns of the
+                        % stored 4-unknown system are the right-edge values.
+                        % We extrapolate linearly from x_{rb} to x_{rb+1}.
                         aux_ps = stored_R\stored_z;
                         a_end = aux_ps(end-1, :);
                         b_end = aux_ps(end, :);
-                        % compute rolling cv_score (for a future use)
                         rcv_score = rcv_score + sum( (a_end + b_end * (xi(rb+1) - xi(rb)) - yi(rb+1,:)).^2 );
                     end
                 end
-                
+
                 % print for debugging
                 %fprintf(['PELT pruned fraction:' num2str(1 - active_list.size()/N) '\n']);
 
 
                 %%% END PELT PRUNING
-                
+
             %%% BEGIN FPVI PRUNING
-            otherwise
+            case 'FPVI'
                 for rb=3:N
 
                     % best left bound (blb) initialized with 1 corresponding to interval 1:rb
@@ -307,16 +346,36 @@ else
                     %fprintf(['rb:' num2str(rb) ', rb -lb:' num2str(rb - lb) '\n'])
 
                     if rb < N
-                        % compute estimated point and slope at end
+                        % Rolling-CV step: in FPVI the QR feed is *reversed*
+                        % (yi([rb,rb-1],:) at start, yi(lb,:) added each
+                        % iteration), so the last 2 unknowns of the stored
+                        % 4-unknown system are the LEFT edge of the segment
+                        % whose state is in stored_R/stored_z. That segment
+                        % is [blb, rb] when an improvement was found
+                        % (blb >= 2), and the smallest 2-point segment
+                        % [rb-1, rb] when no candidate improved F(rb)
+                        % (blb stayed at 1 — stored_R was set at the very
+                        % first inner-loop iteration via startEpsLR).
+                        % Extrapolate from that left edge to x_{rb+1}.
+                        % (PELT extrapolates from x_{rb}; both definitions
+                        % are reasonable rolling-CV summaries.)
+                        if blb >= 2
+                            x_left = xi(blb);
+                        else
+                            x_left = xi(rb-1);
+                        end
                         aux_ps = stored_R\stored_z;
                         a_end = aux_ps(end-1, :);
                         b_end = aux_ps(end, :);
-                        % compute rolling cv_score
-                        rcv_score = rcv_score + sum( (a_end + b_end * (xi(rb+1) - xi(rb)) - yi(rb+1,:)).^2 );
+                        rcv_score = rcv_score + sum( (a_end + b_end * (xi(rb+1) - x_left) - yi(rb+1,:)).^2 );
                     end
                 end
 
-                %%% END FPVVI PRUNING
+                %%% END FPVI PRUNING
+
+            otherwise
+                error('cssd:UnknownPruning', ...
+                    'Unknown pruning ''%s''. Expected ''FPVI'' or ''PELT''.', pruning);
         end
         %%% END MAIN LOOP
     end
@@ -382,7 +441,14 @@ for i = 1:numel(output.discont_idx)
     output.discont_idx(i) = output.interval_cell{i}(end);
 end
 
-output.rcv_score = rcv_score/(N-2); % prediction is from point 3 to point N
+% B3: avoid 0/0 NaN for N <= 2 (e.g. install_cssd's smoke test). The rolling-CV
+% sum has N-2 contributions (from rb=3..N-1 in the inner loop, see below);
+% for N <= 2 there are no contributions and the score is 0.
+if N >= 3
+    output.rcv_score = rcv_score / (N - 2);
+else
+    output.rcv_score = 0;
+end
 
 if isempty(xx)
     output.yy = [];

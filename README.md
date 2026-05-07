@@ -20,6 +20,33 @@ https://doi.org/10.48550/arXiv.2211.12785)]**
 2. **cssd_cv.m** automatically determines values for the model parameters $p$ and $\gamma$ based on K-fold cross validation.
 
 ## Quickstart
+
+### Python (Rust core)
+
+```bash
+pip install cssd
+```
+
+```python
+import numpy as np
+from cssd import cssd, cssd_cv
+
+x = np.linspace(0, 1, 100)
+y = np.sin(4 * np.pi * x) - np.sign(x - 0.3) - np.sign(0.72 - x)
+
+out = cssd(x, y, p=0.999, gamma=8.0)
+out.discont      # detected jump locations
+out.pp(x)        # evaluate the piecewise spline
+
+cv = cssd_cv(x, y, cv_type="random", cv_arg=5)
+cv.p, cv.gamma, cv.fit.discont
+```
+
+The Python package wraps a Rust extension built with [PyO3](https://pyo3.rs)
+and [maturin](https://maturin.rs); see `crates/cssd-core` for the algorithm
+crate and `crates/cssd-py` for the bindings.
+
+### MATLAB (reference implementation, unchanged)
 1. Execute "install_cssd.m" which adds the folder and all subfolders to the Matlab path.
 2. Execute any m-file from the demos folder
 

@@ -1,4 +1,28 @@
+.DS_Store
 
-demos/__pycache__/ruptures_cssd.cpython-39.pyc
-.DS_Store
-.DS_Store
+# Python build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.so
+*.dylib
+*.pyd
+*.egg-info/
+build/
+dist/
+wheels/
+.pytest_cache/
+
+# maturin / PyO3 build outputs (keep `python/cssd/*.py`, exclude binaries)
+python/cssd/_cssd_core*
+
+# Rust build outputs
+/target/
+Cargo.lock.bak
+
+# Internal / historical docs not shipped to PyPI
+PORTING_NOTES.md
+PAPER_COMPLIANCE.md
+
+# Devcontainer
+.devcontainer/

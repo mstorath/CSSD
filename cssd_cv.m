@@ -55,14 +55,17 @@ if nargin < 6
     startingPoint = [];
 end
 
-p = inputParser;
-addOptional(p,'verbose', 0);
-addOptional(p,'maxTime', Inf);
-addOptional(p,'pruning', 'FPVI');
-parse(p,varargin{:});
-verbose = p.Results.verbose;
-maxTime = p.Results.maxTime;
-pruning_method = p.Results.pruning;
+% B4: use a distinct name for the inputParser to avoid shadowing the
+% smoothing parameter `p` (which is reassigned below from `startingPoint`).
+parser = inputParser;
+addOptional(parser,'verbose', 0);
+addOptional(parser,'maxTime', Inf);
+addOptional(parser,'pruning', 'FPVI', ...
+    @(s) ischar(s) && any(strcmp(s, {'FPVI', 'PELT'})));
+parse(parser, varargin{:});
+verbose        = parser.Results.verbose;
+maxTime        = parser.Results.maxTime;
+pruning_method = parser.Results.pruning;
 
 if isempty(delta)
     delta = ones(size(x));
@@ -73,9 +76,13 @@ end
 
 [N,D] = size(yi);
 
-% create folds if not given
+% B5: apply the K=5 default whenever cv_arg is empty regardless of
+% whether cv_type was supplied. Previously the default was only applied
+% if BOTH were empty, so e.g. cssd_cv(x, y, 'random') crashed.
 if isempty(cv_type)
     cv_type = 'random';
+end
+if isempty(cv_arg) && (strcmp(cv_type, 'random') || strcmp(cv_type, 'equi'))
     cv_arg = 5;
 end
 
@@ -95,8 +102,10 @@ end
 
 %gamma_tf = @(b) atan(b) * 2/pi;
 %gamma_itf = @(a) (tan(a * pi/2));
-% parametrize gamma = p * q/(1-q)
-gamma_pq = @(p,q) p * (q / (1-q));
+% parametrize gamma = p * q/(1-q). max(1-q, eps) (B8) keeps the formula
+% finite at the singular boundary q=1; combined with the q upper bound
+% below, this prevents 0*Inf=NaN from leaking into the optimisation.
+gamma_pq = @(p,q) p * (q ./ max(1 - q, eps));
 
 % generate cv score function
 cv_fun = @(p, gamma) cssd_cvscore(xi, yi, p, gamma, deltai, folds_cell, pruning_method);
@@ -132,9 +141,12 @@ end
 %startingPoint_tf = [startingPoint(1); startingPoint(1) * gamma_tf(startingPoint(2))];
 
 
-% invoke chain of standard derivative-free optimizers on [0,1]^2: simulated
-% annealing followed by Nelder-Mead simplex downhill
-[improvedPoint_tf, cv_score] = simulannealbnd(cv_fun_vec, startingPoint_tf, [0;0], [1;1], optimoptions(saoptions{:})); % simulated annealing
+% invoke chain of standard derivative-free optimizers on [0,1] x [0, 1-eps]:
+% simulated annealing followed by Nelder-Mead simplex downhill. The q upper
+% bound is just below 1 (B8) so the optimiser cannot sample the singular
+% point q=1 (which would give gamma_pq = p * Inf = NaN for p=0).
+q_upper = 1 - eps;
+[improvedPoint_tf, cv_score] = simulannealbnd(cv_fun_vec, startingPoint_tf, [0;0], [1; q_upper], optimoptions(saoptions{:})); % simulated annealing
 [improvedPoint_tf, cv_score] = fminsearch(cv_fun_vec, improvedPoint_tf, optimset(options{:})); % refine result of simulated annealing by Nelder Mead downhill
 
 % improved p and gamma
