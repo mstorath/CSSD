@@ -40,3 +40,7 @@ and Python consumers see a single coherent release history.
 ### Security
 - Built against `pyo3 >= 0.24.1` (closes GHSA-pph8-gcv7-4qj5,
   `PyString::from_object` buffer-overread).
+
+[Unreleased]: https://github.com/mstorath/CSSD/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/mstorath/CSSD/releases/tag/v1.0.2
+[1.0.1]: https://github.com/mstorath/CSSD/releases/tag/v1.0.1
