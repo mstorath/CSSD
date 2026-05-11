@@ -11,4 +11,4 @@ from .cv import cssd_cv, CssdCvOutput
 from .ppform import PiecewisePoly
 
 __all__ = ["cssd", "cssd_cv", "CssdOutput", "CssdCvOutput", "PiecewisePoly"]
-__version__ = "1.0.1"
+__version__ = "1.0.2"

@@ -6,6 +6,17 @@ All notable changes to `cssd` are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-05-11
+
+Metadata maintenance release. No algorithmic changes.
+
+### Changed
+
+- README harmonised with the lab-repo family: badge block, TL;DR sentence, expanded "See also" section linking the five sibling repos and two external related projects, License footer.
+- `CITATION.cff` updated to `version: 1.0.2`, `date-released: 2026-05-11`.
+- Auto-create GitHub Release on tag push (alongside PyPI publish).
+- PyPI publish step set to `skip-existing: true` so workflow re-runs are idempotent.
+
 ## [1.0.1] - 2026-05-07
 
 First PyPI release. Continues the version line of the MATLAB reference

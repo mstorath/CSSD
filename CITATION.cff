@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite both the software and the associated paper below."
 title: "CSSD: Cubic smoothing splines for discontinuous signals"
-version: 1.0.1
-date-released: 2026-05-07
+version: 1.0.2
+date-released: 2026-05-11
 abstract: "Reference implementation (MATLAB and Rust/Python port) of cubic smoothing splines for signals with a priori unknown discontinuities. Solves a piecewise smoothing-spline model in which both the spline coefficients and the discontinuity set are estimated jointly via dynamic programming."
 type: software
 url: "https://github.com/mstorath/CSSD"
