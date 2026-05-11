@@ -1,6 +1,14 @@
-# CSSD - Cubic smoothing splines for discontinuous signals
+# CSSD — Cubic smoothing splines for discontinuous signals
 
-This is a reference implementation in Matlab for the algorithms described in the paper
+[![PyPI](https://img.shields.io/pypi/v/cssd.svg)](https://pypi.org/project/cssd/)
+[![Python](https://img.shields.io/pypi/pyversions/cssd.svg)](https://pypi.org/project/cssd/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/mstorath/CSSD/actions/workflows/ci.yml/badge.svg)](https://github.com/mstorath/CSSD/actions/workflows/ci.yml)
+[![MATLAB](https://img.shields.io/badge/MATLAB-supported-orange.svg)](#matlab-reference-implementation-unchanged)
+
+Cubic smoothing splines for signals with a-priori unknown discontinuities — joint estimation of the spline and the discontinuity set via dynamic programming, with K-fold cross-validation for the regularisation parameters.
+
+This is a reference implementation for the algorithms described in the paper
 
 **M. Storath, A. Weinmann, "Smoothing splines for discontinuous signals", Journal of Computational and Graphical Statistics, 2023, [[Preprint](
 https://doi.org/10.48550/arXiv.2211.12785)]**
@@ -87,9 +95,25 @@ represent the results of the shown sample realization.	 The shaded areas depict 
 
 M. Storath, A. Weinmann, "Smoothing splines for discontinuous signals", Journal of Computational and Graphical Statistics, 2023
 
-## See also 
+## How to cite
 
-- [Higher order Mumford-Shah models (discrete splines with discontinuities)](https://github.com/lu-kie/HOMS_SignalProcessing)
-- [Degrees of freedom penalized regression](https://github.com/SV-97/pcw-regrs)
-- [Pottslab](https://github.com/mstorath/Pottslab)
-- [L1TV regularization](https://github.com/mstorath/L1TV)
+If you use this software, please cite the paper above. GitHub's "Cite this repository" button on the repo page reads the `version` and `date-released` fields from [`CITATION.cff`](CITATION.cff) and renders BibTeX/APA.
+
+## See also
+
+Sibling projects from the same research program on variational methods for signal and image processing:
+
+- [Pottslab](https://github.com/mstorath/Pottslab) — multilabel image segmentation via the Potts / piecewise-constant Mumford-Shah model
+- [L1TV](https://github.com/mstorath/L1TV) — exact L1-TV regularisation of real- or circle-valued signals
+- [MumfordShah2D](https://github.com/mstorath/MumfordShah2D) — edge-preserving image restoration via the Mumford-Shah model
+- [CircleMedianFilter](https://github.com/mstorath/CircleMedianFilter) — fast median filtering for phase or orientation data
+- [DCEBE](https://github.com/mstorath/DCEBE) — bolus arrival time estimation for DCE-MRI signals
+
+Related external projects:
+
+- [Higher order Mumford-Shah models](https://github.com/lu-kie/HOMS_SignalProcessing) — discrete splines with discontinuities.
+- [pcw-regrs](https://github.com/SV-97/pcw-regrs) — degrees-of-freedom penalised piecewise regression.
+
+## License
+
+Released under the MIT License. See [LICENSE](LICENSE).
