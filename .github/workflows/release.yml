@@ -126,3 +126,21 @@ jobs:
           body_path: release-notes.md
           generate_release_notes: true
           files: dist/*
+
+      - name: Verify uploaded package (real install + import + call)
+        # Defends against silent failures where PyPI accepts the upload
+        # but the package isn't actually usable (renamed module, missing
+        # __init__, broken native binding, ABI mismatch, etc.).
+        # Mirrors CMF v0.1.7's step — see devcontainer reports/11.
+        run: |
+          # Brief delay so PyPI's CDN settles the new version.
+          sleep 30
+          pip install --no-cache-dir --index-url https://pypi.org/simple/ cssd
+          python -c "
+          import numpy as np
+          from cssd import cssd
+          from importlib.metadata import version
+          x = np.linspace(0, 1, 16)
+          out = cssd(x, np.zeros(16), p=0.99, gamma=1e10)
+          print(f'cssd {version(\"cssd\")} verify OK')
+          "
